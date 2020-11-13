@@ -3,6 +3,9 @@ from torch import nn
 import torch.nn.functional as F
 from torchvision import datasets, transforms
 import matplotlib.pyplot as plt
+import os
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class ConvNet(nn.Module):
@@ -54,9 +57,11 @@ def train(model, data_loader, optimizer):
     correct = 0
     total_loss = 0
     for _, (feature, label) in enumerate(data_loader):
+        feature_g = feature.to(device)
+        label_g = label.to(device)
         optimizer.zero_grad()
-        output = model(feature)
-        loss = F.cross_entropy(output, label, reduction='sum')
+        output = model(feature_g)
+        loss = F.cross_entropy(output, label_g, reduction='sum').to(device)
         total_loss += loss.item()
         pred = torch.argmax(output, 1)
         correct += pred.eq(label.view_as(pred)).sum().item()
@@ -72,15 +77,17 @@ def train_L1(model, data_loader, optimizer, factor):
     correct = 0
     total_loss = 0
     for _, (feature, label) in enumerate(data_loader):
+        feature_g = feature.to(device)
+        label_g = label.to(device)
         optimizer.zero_grad()
-        output = model(feature)
+        output = model(feature_g)
         regularization_loss = 0
         for param in model.parameters():
             regularization_loss += torch.sum(abs(param))
-        loss = F.cross_entropy(output, label, reduction='sum') + factor * regularization_loss
+        loss = F.cross_entropy(output, label_g, reduction='sum').to(device) + factor * regularization_loss
         total_loss += loss.item()
         pred = torch.argmax(output, 1)
-        correct += pred.eq(label.view_as(pred)).sum().item()
+        correct += pred.eq(label_g.view_as(pred)).sum().item()
         loss.backward()
         optimizer.step()
     correct /= len(data_loader.dataset)
@@ -88,50 +95,56 @@ def train_L1(model, data_loader, optimizer, factor):
     return correct, total_loss
 
 
-def test(model, data_loader):
+def predict(model, data_loader):
     model.eval()
     correct = 0
     total_loss = 0
     with torch.no_grad():
         for _, (feature, label) in enumerate(data_loader):
-            output = model(feature)
-            total_loss += F.cross_entropy(output, label, reduction='sum').item()
+            feature_g = feature.to(device)
+            label_g = label.to(device)
+            output = model(feature_g)
+            total_loss += F.cross_entropy(output, label_g, reduction='sum').item()
             pred = torch.argmax(output, 1)
-            correct += pred.eq(label.view_as(pred)).sum().item()
+            correct += pred.eq(label_g.view_as(pred)).sum().item()
     correct /= len(data_loader.dataset)
     total_loss /= len(data_loader.dataset)
     return correct, total_loss
 
 
 if __name__ == '__main__':
+    save_dir = 'pic'
+    if not os.path.exists(save_dir):
+        os.mkdir(save_dir)
     model = ConvNet()
+    model.to(device)
     epoch = 10
     # lr = 0.0001
-    optimizer_sgd = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9)
+    optimizer_sgd = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
     optimizer_adam = torch.optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08)
-    optimizer_rmsprop = torch.optim.RMSprop(model.parameters(), lr=0.01, alpha=0.99)
+    optimizer_rmsprop = torch.optim.RMSprop(model.parameters(), lr=0.001, alpha=0.99)
     train_loader = torch.utils.data.DataLoader(
         datasets.MNIST('data', train=True, download=True,
                        transform=transforms.Compose([
                            transforms.ToTensor(),
                            transforms.Normalize((0.1037,), (0.3081,))
                        ])),
-        batch_size=32, shuffle=True)
+        batch_size=600, shuffle=True)
 
     test_loader = torch.utils.data.DataLoader(
         datasets.MNIST('data', train=False, transform=transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.1037,), (0.3081,))
         ])),
-        batch_size=32, shuffle=True)
+        batch_size=600, shuffle=True)
     train_acc_list = []
     test_acc_list = []
     train_loss_list = []
     test_loss_list = []
 
     for i in range(epoch):
-        acc, loss = train_L1(model, train_loader, optimizer_sgd, 0.2)
-        test_acc, test_loss = test(model, test_loader)
+        acc, loss = train_L1(model, train_loader, optimizer_adam, 0.01)
+        test_acc, test_loss = predict(model, test_loader)
         train_acc_list.append(acc)
         test_acc_list.append(test_acc)
         train_loss_list.append(loss)
@@ -148,7 +161,7 @@ if __name__ == '__main__':
     plt.xlabel('Epochs')
     plt.ylabel('accuracy')
     plt.legend()
-    plt.show()
+    plt.savefig(save_dir + '/accuracy.png')
 
     plt.clf()
     plt.plot(range(1, epoch + 1), train_loss_list, 'g-', label='Train loss')
@@ -157,4 +170,4 @@ if __name__ == '__main__':
     plt.xlabel('Epochs')
     plt.ylabel('loss')
     plt.legend()
-    plt.show()
+    plt.savefig(save_dir + '/loss.png')
