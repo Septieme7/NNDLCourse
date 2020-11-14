@@ -64,8 +64,8 @@ def load_data(data_name, file_path):
     return train_data, test_data
 
 
-path_dict = {"sonar": "/Users/septieme/School/NN&DL/class_1/Data/sonar_binary/sonar.all-data",
-             "wdbc": "/Users/septieme/School/NN&DL/class_1/Data/wdbc_binary/wdbc.data", }
+path_dict = {"sonar": "/Users/septieme/School/NN&DL/ex_1/Data/sonar_binary/sonar.all-data",
+             "wdbc": "/Users/septieme/School/NN&DL/ex_1/Data/wdbc_binary/wdbc.data", }
 
 if __name__ == '__main__':
     dataset_title = 'sonar'

@@ -107,9 +107,9 @@ def load_data(dataset_name, dataset_path):
     return train_loader, test_loader
 
 
-path_dict = {"iris": "/Users/septieme/School/NN&DL/class_1/Data/iris_multi/iris.data",
-             "soybean": "/Users/septieme/School/NN&DL/class_1/Data/soybean_multi/soybean-large.data",
-             "robot": "/Users/septieme/School/NN&DL/class_1/Data/robot_multi/sensor_readings_24.data"}
+path_dict = {"iris": "/Users/septieme/School/NN&DL/ex_1/Data/iris_multi/iris.data",
+             "soybean": "/Users/septieme/School/NN&DL/ex_1/Data/soybean_multi/soybean-large.data",
+             "robot": "/Users/septieme/School/NN&DL/ex_1/Data/robot_multi/sensor_readings_24.data"}
 
 if __name__ == '__main__':
     dataset_name = 'robot'

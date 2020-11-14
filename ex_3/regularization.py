@@ -35,6 +35,37 @@ class ConvNet(nn.Module):
         return out
 
 
+class ConvNet_BN(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1 = nn.Conv2d(1, 6, 5, padding=2)
+        self.conv1_bn = nn.BatchNorm2d(6)
+        self.pool1 = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(6, 16, 5)
+        self.conv2_bn = nn.BatchNorm2d(16)
+        self.pool2 = nn.MaxPool2d(2, 2)
+        self.conv3 = nn.Conv2d(16, 120, 5)
+        self.fc1 = nn.Linear(120, 84)
+        self.fc2 = nn.Linear(84, 10)
+
+    def forward(self, x):
+        in_size = x.size(0)
+        out = self.conv1(x)
+        out = self.conv1_bn(out)
+        out = F.relu(out)
+        out = self.pool1(out)
+        out = self.conv2(out)
+        out = self.conv2_bn(out)
+        out = F.relu(out)
+        out = self.pool2(out)
+        out = self.conv3(out)
+        out = out.view(in_size, -1)
+        out = self.fc1(out)
+        out = F.relu(out)
+        out = self.fc2(out)
+        return out
+
+
 class ConvNet2(nn.Module):
     def __init__(self):
         super().__init__()
@@ -84,6 +115,29 @@ def train_L1(model, data_loader, optimizer, factor):
         regularization_loss = 0
         for param in model.parameters():
             regularization_loss += torch.sum(abs(param))
+        loss = F.cross_entropy(output, label_g, reduction='sum').to(device) + factor * regularization_loss
+        total_loss += loss.item()
+        pred = torch.argmax(output, 1)
+        correct += pred.eq(label_g.view_as(pred)).sum().item()
+        loss.backward()
+        optimizer.step()
+    correct /= len(data_loader.dataset)
+    total_loss /= len(data_loader.dataset)
+    return correct, total_loss
+
+
+def train_L2(model, data_loader, optimizer, factor):
+    model.train()
+    correct = 0
+    total_loss = 0
+    for _, (feature, label) in enumerate(data_loader):
+        feature_g = feature.to(device)
+        label_g = label.to(device)
+        optimizer.zero_grad()
+        output = model(feature_g)
+        regularization_loss = 0
+        for param in model.parameters():
+            regularization_loss += torch.sum(param ** 2)
         loss = F.cross_entropy(output, label_g, reduction='sum').to(device) + factor * regularization_loss
         total_loss += loss.item()
         pred = torch.argmax(output, 1)
