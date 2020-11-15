@@ -1,0 +1,140 @@
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torchvision import datasets, transforms
+from torch.autograd import Variable
+from torchvision.utils import save_image
+from torch import autograd
+import os
+import numpy as np
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+batch_size = 600
+transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize(mean=(0.5,), std=(0.5,))])
+train_dataset = datasets.MNIST(root='./data', train=True, transform=transform, download=True)
+test_dataset = datasets.MNIST(root='./data', train=False, transform=transform, download=False)
+train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
+test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
+mnist_dim = train_dataset.train_data.size(1) * train_dataset.train_data.size(2)
+
+
+class Generator(nn.Module):
+    def __init__(self, input_dim, output_dim):
+        super(Generator, self).__init__()
+        self.fc1 = nn.Linear(input_dim, 256)
+        self.fc2 = nn.Linear(self.fc1.out_features, self.fc1.out_features * 2)
+        self.fc3 = nn.Linear(self.fc2.out_features, self.fc2.out_features * 2)
+        self.fc4 = nn.Linear(self.fc3.out_features, output_dim)
+
+    # forward method
+    def forward(self, x):
+        x = F.leaky_relu(self.fc1(x), 0.2)
+        x = F.leaky_relu(self.fc2(x), 0.2)
+        x = F.leaky_relu(self.fc3(x), 0.2)
+        return torch.tanh(self.fc4(x))
+
+
+class Discriminator(nn.Module):
+    def __init__(self, input_dim):
+        super(Discriminator, self).__init__()
+        self.fc1 = nn.Linear(input_dim, 1024)
+        self.fc2 = nn.Linear(self.fc1.out_features, self.fc1.out_features // 2)
+        self.fc3 = nn.Linear(self.fc2.out_features, self.fc2.out_features // 2)
+        self.fc4 = nn.Linear(self.fc3.out_features, 1)
+
+    # forward method
+    def forward(self, x):
+        x = F.leaky_relu(self.fc1(x), 0.2)
+        x = F.dropout(x, 0.3)
+        x = F.leaky_relu(self.fc2(x), 0.2)
+        x = F.dropout(x, 0.3)
+        x = F.leaky_relu(self.fc3(x), 0.2)
+        x = F.dropout(x, 0.3)
+        return torch.sigmoid(self.fc4(x))
+
+
+def compute_gradient_penalty(model, real, fake):
+    alpha = torch.Tensor(np.random.random((real.size(0), 1))).to(device)
+    interpolates = (alpha * real + (1 - alpha) * fake).to(device).requires_grad_(True)
+    D_interpolates = model(interpolates)
+    fake = Variable(torch.Tensor(real.shape[0], 1).fill_(1.0).to(device), requires_grad=False)
+    gradients = autograd.grad(
+        outputs=D_interpolates,
+        inputs=interpolates,
+        grad_outputs=fake,
+        create_graph=True,
+        retain_graph=True,
+        only_inputs=True
+    )[0]
+    gradients = gradients.view(gradients.size(0), -1)
+    gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
+    return gradient_penalty
+
+
+def train_discriminator(model, image, criterion, batch_size, factor):
+    model.zero_grad()
+
+    # 真样本训练
+    x_real, y_real = image.view(-1, mnist_dim), torch.ones(batch_size, 1)
+    x_real, y_real = Variable(x_real.to(device)), Variable(y_real.to(device))
+
+    D_output = model(x_real)
+    D_real_loss = criterion(D_output, y_real)
+
+    # 生成样本训练
+    z = Variable(torch.randn(batch_size, z_dim).to(device))
+    x_fake, y_fake = generator(z), Variable(torch.zeros(batch_size, 1).to(device))
+    D_output = model(x_fake)
+    D_fake_loss = criterion(D_output, y_fake)
+
+    D_loss = D_real_loss + D_fake_loss + factor * compute_gradient_penalty(model, x_real, x_fake)
+    D_loss.backward()
+    D_optimizer.step()
+
+    return D_loss.data.item()
+
+
+def train_generator(generator, discriminator, criterion, batch_size):
+    generator.zero_grad()
+
+    z = Variable(torch.randn(batch_size, z_dim).to(device))
+    y = Variable(torch.ones(batch_size, 1).to(device))
+
+    G_output = generator(z)
+    D_output = discriminator(G_output)
+    G_loss = criterion(D_output, y)
+
+    G_loss.backward()
+    G_optimizer.step()
+
+    return G_loss.data.item()
+
+
+if __name__ == "__main__":
+    z_dim = 100
+    lr = 0.0002
+    epochs = 10
+    save_dir = 'GAN_pic'
+    if not os.path.exists(save_dir):
+        os.mkdir(save_dir)
+    generator = Generator(z_dim, mnist_dim).to(device)
+    discriminator = Discriminator(mnist_dim).to(device)
+    loss_function = nn.BCELoss()
+    G_optimizer = optim.Adam(generator.parameters(), lr=lr)
+    D_optimizer = optim.Adam(discriminator.parameters(), lr=lr)
+
+    for epoch in range(1, epochs + 1):
+        D_losses, G_losses = [], []
+        for batch_idx, (x, _) in enumerate(train_loader):
+            D_losses.append(train_discriminator(discriminator, x, loss_function, batch_size, 0.01))
+            G_losses.append(train_generator(generator, discriminator, loss_function, batch_size))
+
+        print('Epoch %d: loss_d: %.3f, loss_g: %.3f' % (
+            epoch, torch.mean(torch.FloatTensor(D_losses)), torch.mean(torch.FloatTensor(G_losses))))
+    with torch.no_grad():
+        test_z = Variable(torch.randn(100, z_dim).to(device))
+        generated = generator(test_z)
+        save_image(generated.view(generated.size(0), 1, 28, 28), save_dir + '/wGAN_generated' + '.png', nrow=10)

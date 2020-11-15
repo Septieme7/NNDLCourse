@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from torchvision import datasets, transforms
 import matplotlib.pyplot as plt
 import os
+from tqdm import tqdm
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -87,7 +88,7 @@ def train(model, data_loader, optimizer):
     model.train()
     correct = 0
     total_loss = 0
-    for _, (feature, label) in enumerate(data_loader):
+    for _, (feature, label) in enumerate(tqdm(data_loader)):
         feature_g = feature.to(device)
         label_g = label.to(device)
         optimizer.zero_grad()
@@ -95,7 +96,7 @@ def train(model, data_loader, optimizer):
         loss = F.cross_entropy(output, label_g, reduction='sum').to(device)
         total_loss += loss.item()
         pred = torch.argmax(output, 1)
-        correct += pred.eq(label.view_as(pred)).sum().item()
+        correct += pred.eq(label_g.view_as(pred)).sum().item()
         loss.backward()
         optimizer.step()
     correct /= len(data_loader.dataset)
@@ -107,7 +108,7 @@ def train_L1(model, data_loader, optimizer, factor):
     model.train()
     correct = 0
     total_loss = 0
-    for _, (feature, label) in enumerate(data_loader):
+    for _, (feature, label) in enumerate(tqdm(data_loader)):
         feature_g = feature.to(device)
         label_g = label.to(device)
         optimizer.zero_grad()
@@ -130,7 +131,7 @@ def train_L2(model, data_loader, optimizer, factor):
     model.train()
     correct = 0
     total_loss = 0
-    for _, (feature, label) in enumerate(data_loader):
+    for _, (feature, label) in enumerate(tqdm(data_loader)):
         feature_g = feature.to(device)
         label_g = label.to(device)
         optimizer.zero_grad()
@@ -154,7 +155,7 @@ def predict(model, data_loader):
     correct = 0
     total_loss = 0
     with torch.no_grad():
-        for _, (feature, label) in enumerate(data_loader):
+        for _, (feature, label) in enumerate(tqdm(data_loader)):
             feature_g = feature.to(device)
             label_g = label.to(device)
             output = model(feature_g)
@@ -168,15 +169,26 @@ def predict(model, data_loader):
 
 if __name__ == '__main__':
     save_dir = 'pic'
+    train_type = 'normal'
     if not os.path.exists(save_dir):
         os.mkdir(save_dir)
-    model = ConvNet()
+    if train_type == 'bn':
+        model = ConvNet_BN()
+    else:
+        model = ConvNet()
+    optim = 'sgd'
     model.to(device)
     epoch = 10
-    # lr = 0.0001
-    optimizer_sgd = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+    factor = 0.01
+    optimizer_sgd = torch.optim.SGD(model.parameters(), lr=0.0001)
     optimizer_adam = torch.optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08)
     optimizer_rmsprop = torch.optim.RMSprop(model.parameters(), lr=0.001, alpha=0.99)
+    if optim == 'sgd':
+        optimizer = optimizer_sgd
+    elif optim == 'adam':
+        optimizer = optimizer_adam
+    elif optim == 'rmsprop':
+        optimizer = optimizer_rmsprop
     train_loader = torch.utils.data.DataLoader(
         datasets.MNIST('data', train=True, download=True,
                        transform=transforms.Compose([
@@ -197,7 +209,13 @@ if __name__ == '__main__':
     test_loss_list = []
 
     for i in range(epoch):
-        acc, loss = train_L1(model, train_loader, optimizer_adam, 0.01)
+        if train_type == 'L1':
+            acc, loss = train_L1(model, train_loader, optimizer, factor)
+        elif train_type == 'L2':
+            acc, loss = train_L2(model, train_loader, optimizer, factor)
+        else:
+            acc, loss = train(model, train_loader, optimizer)
+
         test_acc, test_loss = predict(model, test_loader)
         train_acc_list.append(acc)
         test_acc_list.append(test_acc)
@@ -210,18 +228,33 @@ if __name__ == '__main__':
               '\t' "test_loss: {:.6}".format(test_loss))
 
     plt.plot(range(1, epoch + 1), train_acc_list, 'g-', label='Train accuracy')
-    plt.plot(range(1, epoch + 1), test_acc_list, 'b', label='Test accuracy')
+    plt.plot(range(1, epoch + 1), test_acc_list, 'b--', label='Test accuracy')
     plt.title('Train and test accuracy')
     plt.xlabel('Epochs')
     plt.ylabel('accuracy')
     plt.legend()
-    plt.savefig(save_dir + '/accuracy.png')
+    if train_type == 'normal' or train_type == 'bn':
+        plt.savefig(save_dir + '/{}_{}_{}_accuracy.png'.format(optim, train_type, epoch))
+    else:
+        plt.savefig(save_dir + '/{}_{}_{}_accuracy_{}.png'.format(optim, train_type, epoch, factor))
 
     plt.clf()
     plt.plot(range(1, epoch + 1), train_loss_list, 'g-', label='Train loss')
-    plt.plot(range(1, epoch + 1), test_loss_list, 'b', label='Test loss')
+    plt.plot(range(1, epoch + 1), test_loss_list, 'b--', label='Test loss')
     plt.title('Train and test loss')
     plt.xlabel('Epochs')
     plt.ylabel('loss')
     plt.legend()
-    plt.savefig(save_dir + '/loss.png')
+    if train_type == 'normal' or train_type == 'bn':
+        plt.savefig(save_dir + '/{}_{}_{}_loss.png'.format(optim, train_type, epoch))
+    else:
+        plt.savefig(save_dir + '/{}_{}_{}_loss_{}.png'.format(optim, train_type, epoch, factor))
+
+    if train_type == 'normal' or train_type == 'bn':
+        f = open(save_dir + '/{}_{}_{}_result.txt'.format(optim, train_type, epoch), 'w')
+        f.write("Train Accuracy:{:.4}\tTest Accuracy:{:.4}\n".format(train_acc_list[-1] * 100, test_acc_list[-1] * 100))
+        f.close()
+    else:
+        f = open(save_dir + '/{}_{}_{}_result_{}.txt'.format(optim, train_type, epoch, factor), 'w')
+        f.write("Train Accuracy:{:.4}\tTest Accuracy:{:.4}\n".format(train_acc_list[-1] * 100, test_acc_list[-1] * 100))
+        f.close()
