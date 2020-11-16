@@ -26,6 +26,8 @@ class Generator(nn.Module):
         self.fc2 = nn.Linear(self.fc1.out_features, self.fc1.out_features * 2)
         self.fc3 = nn.Linear(self.fc2.out_features, self.fc2.out_features * 2)
         self.fc4 = nn.Linear(self.fc3.out_features, output_dim)
+        for param in self.parameters():
+            nn.init.normal_(param, mean=0, std=0.01)
 
     # forward method
     def forward(self, x):
@@ -42,6 +44,8 @@ class Discriminator(nn.Module):
         self.fc2 = nn.Linear(self.fc1.out_features, self.fc1.out_features // 2)
         self.fc3 = nn.Linear(self.fc2.out_features, self.fc2.out_features // 2)
         self.fc4 = nn.Linear(self.fc3.out_features, 1)
+        for param in self.parameters():
+            nn.init.normal_(param, mean=0, std=0.01)
 
     # forward method
     def forward(self, x):
@@ -107,8 +111,8 @@ if __name__ == "__main__":
     generator = Generator(z_dim, mnist_dim).to(device)
     discriminator = Discriminator(mnist_dim).to(device)
     loss_function = nn.BCELoss()
-    G_optimizer = optim.Adam(generator.parameters(), lr=lr)
-    D_optimizer = optim.Adam(discriminator.parameters(), lr=lr)
+    G_optimizer = optim.Adam(generator.parameters(), lr=lr, betas=(0.5, 0.999))
+    D_optimizer = optim.Adam(discriminator.parameters(), lr=lr, betas=(0.5, 0.999))
 
     for epoch in range(1, epochs + 1):
         D_losses, G_losses = [], []

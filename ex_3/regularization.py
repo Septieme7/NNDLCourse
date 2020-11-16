@@ -67,23 +67,6 @@ class ConvNet_BN(nn.Module):
         return out
 
 
-class ConvNet2(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.conv1_1 = nn.Conv2d(1, 64, 5, 2, 0)
-        self.conv2 = nn.Conv2d(64, 128, 5, 2, 1)
-        self.conv2_bn = nn.BatchNorm2d(128)
-        self.conv3 = nn.Conv2d(128, 10, 7, 1, 1)
-
-    # forward method
-    def forward(self, input):
-        x = F.leaky_relu(self.conv1_1(input), 0.2)
-        x = F.leaky_relu(self.conv2_bn(self.conv2(x)), 0.2)
-        x = self.conv3(x).squeeze()
-
-        return x
-
-
 def train(model, data_loader, optimizer):
     model.train()
     correct = 0
