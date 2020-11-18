@@ -1,15 +1,15 @@
 # NNDLCourse
 The course homework of Neural Network and Deep Learning
 
-### EX_1
+### ex_1
 
 Perceptron and Feedforward Neural Network
 
-### EX_2
+### ex_2
 
 Convolutional Neural Network
 
-### EX_3
+### ex_3
 
 Optimizer and Regularization
-GAN, wGAN, cGAN
+Several GANs: GAN, wGAN, cGAN, DCGAN, wDCGAN

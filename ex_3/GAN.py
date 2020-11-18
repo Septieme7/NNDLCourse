@@ -61,23 +61,18 @@ class Discriminator(nn.Module):
 def train_discriminator(model, image, criterion, batch_size):
     model.zero_grad()
 
-    # train discriminator on real
     x_real, y_real = image.view(-1, mnist_dim), torch.ones(batch_size, 1)
     x_real, y_real = Variable(x_real.to(device)), Variable(y_real.to(device))
 
     D_output = model(x_real)
     D_real_loss = criterion(D_output, y_real)
-    D_real_score = D_output
 
-    # train discriminator on facke
     z = Variable(torch.randn(batch_size, z_dim).to(device))
     x_fake, y_fake = generator(z), Variable(torch.zeros(batch_size, 1).to(device))
 
     D_output = model(x_fake)
     D_fake_loss = criterion(D_output, y_fake)
-    D_fake_score = D_output
 
-    # gradient backprop & optimize ONLY D's parameters
     D_loss = D_real_loss + D_fake_loss
     D_loss.backward()
     D_optimizer.step()

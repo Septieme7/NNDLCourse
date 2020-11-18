@@ -21,7 +21,6 @@ test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=batch
 
 
 class Generator(nn.Module):
-    # initializers
     def __init__(self, z_dim=100, d=128):
         super(Generator, self).__init__()
         self.deconv1 = nn.ConvTranspose2d(z_dim, d * 4, 4, 1, 0)
@@ -32,14 +31,11 @@ class Generator(nn.Module):
         self.deconv3_bn = nn.BatchNorm2d(d)
         self.deconv4 = nn.ConvTranspose2d(d, 1, 4, 2, 1)
 
-    # weight_init
     def weight_init(self, mean, std):
         for m in self._modules:
             normal_init(self._modules[m], mean, std)
 
-    # forward method
     def forward(self, input):
-        # x = F.relu(self.deconv1(input))
         x = F.relu(self.deconv1_bn(self.deconv1(input)))
         x = F.relu(self.deconv2_bn(self.deconv2(x)))
         x = F.relu(self.deconv3_bn(self.deconv3(x)))
@@ -49,7 +45,6 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    # initializers
     def __init__(self, d=128):
         super(Discriminator, self).__init__()
         self.conv1 = nn.Conv2d(1, d, 4, 2, 1)
@@ -59,12 +54,10 @@ class Discriminator(nn.Module):
         self.conv3_bn = nn.BatchNorm2d(d * 4)
         self.conv4 = nn.Conv2d(d * 4, 1, 4, 1, 0)
 
-    # weight_init
     def weight_init(self, mean, std):
         for m in self._modules:
             normal_init(self._modules[m], mean, std)
 
-    # forward method
     def forward(self, input):
         x = F.leaky_relu(self.conv1(input), 0.2)
         x = F.leaky_relu(self.conv2_bn(self.conv2(x)), 0.2)

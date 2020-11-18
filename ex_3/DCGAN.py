@@ -19,7 +19,6 @@ test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=batch
 
 
 class Generator(nn.Module):
-    # initializers
     def __init__(self, z_dim=100, d=128):
         super(Generator, self).__init__()
         self.deconv1 = nn.ConvTranspose2d(z_dim, d * 4, 4, 1, 0)
@@ -30,12 +29,10 @@ class Generator(nn.Module):
         self.deconv3_bn = nn.BatchNorm2d(d)
         self.deconv4 = nn.ConvTranspose2d(d, 1, 4, 2, 1)
 
-    # weight_init
     def weight_init(self, mean, std):
         for m in self._modules:
             normal_init(self._modules[m], mean, std)
 
-    # forward method
     def forward(self, input):
         # x = F.relu(self.deconv1(input))
         x = F.relu(self.deconv1_bn(self.deconv1(input)))
@@ -47,7 +44,6 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    # initializers
     def __init__(self, d=128):
         super(Discriminator, self).__init__()
         self.conv1 = nn.Conv2d(1, d, 4, 2, 1)
@@ -57,12 +53,10 @@ class Discriminator(nn.Module):
         self.conv3_bn = nn.BatchNorm2d(d * 4)
         self.conv4 = nn.Conv2d(d * 4, 1, 4, 1, 0)
 
-    # weight_init
     def weight_init(self, mean, std):
         for m in self._modules:
             normal_init(self._modules[m], mean, std)
 
-    # forward method
     def forward(self, input):
         x = F.leaky_relu(self.conv1(input), 0.2)
         x = F.leaky_relu(self.conv2_bn(self.conv2(x)), 0.2)
@@ -81,22 +75,17 @@ def normal_init(m, mean, std):
 def train_discriminator(model, image, criterion, batch_size):
     model.zero_grad()
 
-    # train discriminator on real
     x_real, y_real = image.view(-1, 1, 28, 28), torch.ones(batch_size, 1)
     x_real, y_real = Variable(x_real.to(device)), Variable(y_real.to(device))
 
     D_output = model(x_real).view(-1, 1)
     D_real_loss = criterion(D_output, y_real)
-    D_real_score = D_output
 
-    # train discriminator on fake
     z = Variable(torch.randn(batch_size, z_dim, 1, 1).to(device))
     x_fake, y_fake = generator(z), Variable(torch.zeros(batch_size, 1).to(device))
     D_output = model(x_fake).view(-1, 1)
     D_fake_loss = criterion(D_output, y_fake)
-    D_fake_score = D_output
 
-    # gradient backprop & optimize ONLY D's parameters
     D_loss = D_real_loss + D_fake_loss
     D_loss.backward()
     D_optimizer.step()
@@ -114,7 +103,6 @@ def train_generator(generator, discriminator, criterion, batch_size):
     D_output = discriminator(G_output).view(-1, 1)
     G_loss = criterion(D_output, y)
 
-    # gradient backprop & optimize ONLY G's parameters
     G_loss.backward()
     G_optimizer.step()
 

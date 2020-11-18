@@ -31,7 +31,6 @@ class Generator(nn.Module):
         for param in self.parameters():
             nn.init.normal_(param, mean=0, std=0.01)
 
-    # forward method
     def forward(self, x):
         x = F.leaky_relu(self.fc1(x), 0.2)
         x = F.leaky_relu(self.fc2(x), 0.2)
@@ -49,7 +48,6 @@ class Discriminator(nn.Module):
         for param in self.parameters():
             nn.init.normal_(param, mean=0, std=0.01)
 
-    # forward method
     def forward(self, x):
         x = F.leaky_relu(self.fc1(x), 0.2)
         x = F.dropout(x, 0.3)

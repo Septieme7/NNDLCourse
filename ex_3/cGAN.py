@@ -30,7 +30,6 @@ class Generator(nn.Module):
         for param in self.parameters():
             nn.init.normal_(param, mean=0, std=0.02)
 
-    # forward method
     def forward(self, x, label):
         x = F.leaky_relu(self.fc1_1(x), 0.2)
         y = F.leaky_relu(self.fc1_2(label), 0.2)
@@ -52,7 +51,6 @@ class Discriminator(nn.Module):
         for param in self.parameters():
             nn.init.normal_(param, mean=0, std=0.02)
 
-    # forward method
     def forward(self, x, label):
         x = F.leaky_relu(self.fc1_1(x), 0.2)
         x = F.dropout(x, 0.3)
@@ -69,13 +67,11 @@ class Discriminator(nn.Module):
 def train_discriminator(model, image, label, criterion, batch_size):
     model.zero_grad()
 
-    # train discriminator on real
     x_real, y_real = image.view(-1, mnist_dim), torch.ones(batch_size, 1)
     x_real, y_real = Variable(x_real.to(device)), Variable(y_real.to(device))
     D_output = model(x_real, label)
     D_real_loss = criterion(D_output, y_real)
 
-    # train discriminator on facke
     z = Variable(torch.randn(batch_size, z_dim).to(device))
     label_fake = Variable(torch.zeros(batch_size, cond_dim, dtype=torch.float32).to(device))
     num = batch_size // cond_dim
@@ -87,7 +83,6 @@ def train_discriminator(model, image, label, criterion, batch_size):
     D_output = model(x_fake, label_fake)
     D_fake_loss = criterion(D_output, y_fake)
 
-    # gradient backprop & optimize ONLY D's parameters
     D_loss = D_real_loss + D_fake_loss
     D_loss.backward()
     D_optimizer.step()
