@@ -144,7 +144,6 @@ if __name__ == "__main__":
     loss_function = nn.BCELoss()
     G_optimizer = optim.Adam(generator.parameters(), lr=lr, betas=(0.5, 0.999))
     D_optimizer = optim.Adam(discriminator.parameters(), lr=lr, betas=(0.5, 0.999))
-
     for epoch in range(1, epochs + 1):
         D_losses, G_losses = [], []
         for batch_idx, (x, _) in enumerate(train_loader):

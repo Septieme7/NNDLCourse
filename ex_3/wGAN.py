@@ -8,6 +8,7 @@ from torchvision.utils import save_image
 from torch import autograd
 import os
 import numpy as np
+import matplotlib.pyplot as plt
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 batch_size = 600
@@ -128,15 +129,24 @@ if __name__ == "__main__":
     loss_function = nn.BCELoss()
     G_optimizer = optim.Adam(generator.parameters(), lr=lr, betas=(0.5, 0.999))
     D_optimizer = optim.Adam(discriminator.parameters(), lr=lr, betas=(0.5, 0.999))
-
+    loss_generator = []
+    loss_discriminator = []
     for epoch in range(1, epochs + 1):
         D_losses, G_losses = [], []
         for batch_idx, (x, _) in enumerate(train_loader):
             D_losses.append(train_discriminator(discriminator, x, loss_function, batch_size, 0.1))
             G_losses.append(train_generator(generator, discriminator, loss_function, batch_size))
-
+        loss_discriminator.append(torch.mean(torch.FloatTensor(D_losses)))
+        loss_generator.append(torch.mean(torch.FloatTensor(G_losses)))
         print('Epoch %d: loss_d: %.3f, loss_g: %.3f' % (
             epoch, torch.mean(torch.FloatTensor(D_losses)), torch.mean(torch.FloatTensor(G_losses))))
+    plt.plot(range(1, epochs + 1), loss_discriminator, 'g-', label='Discriminator loss')
+    plt.plot(range(1, epochs + 1), loss_generator, 'b--', label='Generator loss')
+    plt.title('Gen and Dis loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.savefig(save_dir + '/wGAN_loss.png')
     with torch.no_grad():
         test_z = Variable(torch.randn(100, z_dim).to(device))
         generated = generator(test_z)
