@@ -13,3 +13,7 @@ Convolutional Neural Network
 
 Optimizer and Regularization
 Several GANs: GAN, wGAN, cGAN, DCGAN, wDCGAN
+
+### coursework
+
+Simple implementation of CBAM
