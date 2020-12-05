@@ -131,3 +131,9 @@ dmypy.json
 ex_1/Data
 coursework/data
 .idea
+/.vscode
+*.tar
+/data
+*.png
+*.txt
+*.out

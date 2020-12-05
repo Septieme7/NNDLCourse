@@ -3,12 +3,11 @@ from torch import nn
 import torch.nn.functional as F
 from torchvision import datasets, transforms
 import matplotlib.pyplot as plt
-from CBAM import CBAM
 from tqdm import tqdm
 import os
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model_name = 'CNN_CBAM'
+model_name = 'CNN_raw'
 save_file = model_name + '/checkpoint_' + model_name + '.pth.tar'
 
 
@@ -16,13 +15,10 @@ class ConvNet(nn.Module):
     def __init__(self, d=128):
         super().__init__()
         self.conv1 = nn.Conv2d(3, d, 4, 2, 1)
-        self.cbam1 = CBAM(d)
         self.conv2 = nn.Conv2d(d, d * 2, 4, 2, 1)
         self.conv2_bn = nn.BatchNorm2d(d * 2)
-        self.cbam2 = CBAM(d * 2)
         self.conv3 = nn.Conv2d(d * 2, d * 4, 4, 2, 1)
         self.conv3_bn = nn.BatchNorm2d(d * 4)
-        self.cbam3 = CBAM(d * 4)
         self.conv4 = nn.Conv2d(d * 4, 10, 4, 1, 0)
 
     def weight_init(self, mean, std):
@@ -31,11 +27,11 @@ class ConvNet(nn.Module):
 
     # forward method
     def forward(self, input):
-        x = F.leaky_relu(self.cbam1(self.conv1(input)), 0.2)
+        x = F.leaky_relu(self.conv1(input), 0.2)
         x = F.dropout(x, 0.5)
-        x = F.leaky_relu(self.cbam2(self.conv2_bn(self.conv2(x))), 0.2)
+        x = F.leaky_relu(self.conv2_bn(self.conv2(x)), 0.2)
         x = F.dropout(x, 0.5)
-        x = F.leaky_relu(self.cbam3(self.conv3_bn(self.conv3(x))), 0.2)
+        x = F.leaky_relu(self.conv3_bn(self.conv3(x)), 0.2)
         x = torch.sigmoid(self.conv4(x)).squeeze()
 
         return x
