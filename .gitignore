@@ -129,7 +129,7 @@ dmypy.json
 .pyre/
 .DS_Store
 ex_1/Data
-coursework/data
+coursework/results
 .idea
 /.vscode
 *.tar

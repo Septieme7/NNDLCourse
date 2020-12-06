@@ -1,50 +1,16 @@
 import torch
-from torch import nn
 import torch.nn.functional as F
 from torchvision import datasets, transforms
 import matplotlib.pyplot as plt
-from CBAM import CBAM
 from tqdm import tqdm
 import os
+import models
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model_name = 'CNN_CBAM'
-save_file = model_name + '/checkpoint_' + model_name + '.pth.tar'
-
-
-class ConvNet(nn.Module):
-    def __init__(self, d=128):
-        super().__init__()
-        self.conv1 = nn.Conv2d(3, d, 4, 2, 1)
-        self.cbam1 = CBAM(d)
-        self.conv2 = nn.Conv2d(d, d * 2, 4, 2, 1)
-        self.conv2_bn = nn.BatchNorm2d(d * 2)
-        self.cbam2 = CBAM(d * 2)
-        self.conv3 = nn.Conv2d(d * 2, d * 4, 4, 2, 1)
-        self.conv3_bn = nn.BatchNorm2d(d * 4)
-        self.cbam3 = CBAM(d * 4)
-        self.conv4 = nn.Conv2d(d * 4, 10, 4, 1, 0)
-
-    def weight_init(self, mean, std):
-        for m in self._modules:
-            normal_init(self._modules[m], mean, std)
-
-    # forward method
-    def forward(self, input):
-        x = F.leaky_relu(self.cbam1(self.conv1(input)), 0.2)
-        x = F.dropout(x, 0.5)
-        x = F.leaky_relu(self.cbam2(self.conv2_bn(self.conv2(x))), 0.2)
-        x = F.dropout(x, 0.5)
-        x = F.leaky_relu(self.cbam3(self.conv3_bn(self.conv3(x))), 0.2)
-        x = torch.sigmoid(self.conv4(x)).squeeze()
-
-        return x
-
-
-def normal_init(m, mean, std):
-    if isinstance(m, nn.ConvTranspose2d) or isinstance(m, nn.Conv2d):
-        m.weight.data.normal_(mean, std)
-        m.bias.data.zero_()
+model_name = 'ResNet50_CBAM'
+save_file = 'results/' + model_name + '/checkpoint_' + model_name + '.pth.tar'
+save_dir = 'results/' + model_name + '/'
 
 
 def train(model, data_loader, optimizer):
@@ -85,24 +51,55 @@ def val(model, data_loader):
 
 
 transform = transforms.Compose([
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomCrop(32, padding=4),
         transforms.Resize(32),
         transforms.ToTensor(),
-        transforms.Normalize(mean=(0.5,), std=(0.5,))
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
     ])
 
 
+def load_model(model_name):
+    if model_name == 'CNN_raw':
+        model = models.ConvNet()
+        model.weight_init(0, 0.02)
+    elif model_name == 'CNN_CBAM':
+        model = models.ConvNet_CBAM()
+        model.weight_init(0, 0.02)
+    elif model_name == 'ResNet18_raw':
+        model = models.resnet18()
+    elif model_name == 'ResNet18_CBAM':
+        model = models.resnet18_CBAM()
+    elif model_name == 'ResNet34_raw':
+        model = models.resnet34()
+    elif model_name == 'ResNet34_CBAM':
+        model = models.resnet34_CBAM()
+    elif model_name == 'ResNet50_raw':
+        model = models.resnet50()
+    elif model_name == 'ResNet50_CBAM':
+        model = models.resnet50_CBAM()
+    else:
+        raise RuntimeError('Unknown model type!')
+
+    return model
+
+
 if __name__ == '__main__':
-    if not os.path.exists(model_name):
-        os.mkdir(model_name)
-    model = ConvNet().to(device)
-    model.weight_init(0, 0.02)
-    epoch = 35
-    lr = 0.0001
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    if not os.path.exists('results/' + model_name):
+        os.mkdir('results/' + model_name)
+    model = load_model(model_name).to(device)
+    epoch = 25
+    lr = 0.001
+    if model_name == 'CNN_raw' or model_name == 'CNN_CBAM':
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+        schedular = None
+    else:
+        optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
     train_loader = torch.utils.data.DataLoader(
-        datasets.CIFAR10('../data', train=True, download=True, transform=transform), batch_size=32, shuffle=True)
+        datasets.CIFAR10('../data', train=True, download=True, transform=transform), batch_size=128, shuffle=True)
     test_loader = torch.utils.data.DataLoader(
-        datasets.CIFAR10('../data', train=False, transform=transform), batch_size=32, shuffle=True)
+        datasets.CIFAR10('../data', train=False, transform=transform), batch_size=128, shuffle=True)
     train_acc_list = []
     test_acc_list = []
     train_loss_list = []
@@ -118,7 +115,8 @@ if __name__ == '__main__':
         test_acc_list = checkpoint['test_acc_list']
         train_loss_list = checkpoint['train_loss_list']
         test_loss_list = checkpoint['test_loss_list']
-    out = open(model_name + '/' + model_name + '_out.txt', 'w')
+        scheduler = checkpoint['scheduler']
+    out = open(save_dir + model_name + '_out.txt', 'w')
 
     for i in range(start_epoch, epoch):
         acc, loss = train(model, train_loader, optimizer)
@@ -135,6 +133,7 @@ if __name__ == '__main__':
         out.write("Epoch {}".format(i + 1) + '\n')
         out.write("train_acc: {:.4}%".format(acc * 100.0) + '\t' + "train_loss: {:.6}".format(loss) + '\n')
         out.write("test_acc: {:.4}%".format(test_acc * 100.0) + '\t' + "test_loss: {:.6}".format(test_loss) + '\n')
+        scheduler.step()
     out.close()
     plt.plot(range(1, epoch + 1), train_acc_list, 'g-', label='Train accuracy')
     plt.plot(range(1, epoch + 1), test_acc_list, 'b', label='Test accuracy')
@@ -142,7 +141,7 @@ if __name__ == '__main__':
     plt.xlabel('Epochs')
     plt.ylabel('accuracy')
     plt.legend()
-    plt.savefig(model_name + '/' + model_name + '_accuracy.png')
+    plt.savefig(save_dir + model_name + '_accuracy.png')
 
     plt.clf()
     plt.plot(range(1, epoch + 1), train_loss_list, 'g-', label='Train loss')
@@ -151,7 +150,7 @@ if __name__ == '__main__':
     plt.xlabel('Epochs')
     plt.ylabel('loss')
     plt.legend()
-    plt.savefig(model_name + '/' + model_name + '_loss.png')
+    plt.savefig(save_dir + model_name + '_loss.png')
 
     torch.save({
         'epoch': epoch,
@@ -160,5 +159,6 @@ if __name__ == '__main__':
         'train_acc_list': train_acc_list,
         'test_acc_list': test_acc_list,
         'train_loss_list': train_loss_list,
-        'test_loss_list': test_loss_list
+        'test_loss_list': test_loss_list,
+        'scheduler': scheduler if scheduler is not None else None
     }, save_file)
