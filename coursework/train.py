@@ -11,6 +11,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model_name = 'ResNet50_CBAM'
 save_file = 'results/' + model_name + '/checkpoint_' + model_name + '.pth.tar'
 save_dir = 'results/' + model_name + '/'
+epoch = 50
 
 
 def train(model, data_loader, optimizer):
@@ -88,7 +89,6 @@ if __name__ == '__main__':
     if not os.path.exists('results/' + model_name):
         os.mkdir('results/' + model_name)
     model = load_model(model_name).to(device)
-    epoch = 25
     lr = 0.001
     if model_name == 'CNN_raw' or model_name == 'CNN_CBAM':
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -116,7 +116,7 @@ if __name__ == '__main__':
         train_loss_list = checkpoint['train_loss_list']
         test_loss_list = checkpoint['test_loss_list']
         scheduler = checkpoint['scheduler']
-    out = open(save_dir + model_name + '_out.txt', 'w')
+    out = open(save_dir + model_name + '_out.txt', 'a+')
 
     for i in range(start_epoch, epoch):
         acc, loss = train(model, train_loader, optimizer)

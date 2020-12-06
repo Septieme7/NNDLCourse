@@ -88,7 +88,7 @@ class BasicBlock_CBAM(nn.Module):
         self.residual_function = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False),
             nn.BatchNorm2d(out_channels),
-            CBAM(out_channels),
+            # CBAM(out_channels),
             nn.ReLU(inplace=True),
             nn.Conv2d(out_channels, out_channels * BasicBlock.expansion, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(out_channels * BasicBlock.expansion),
@@ -121,11 +121,11 @@ class BottleNeck_CBAM(nn.Module):
         self.residual_function = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False),
             nn.BatchNorm2d(out_channels),
-            CBAM(out_channels),
+            # CBAM(out_channels),
             nn.ReLU(inplace=True),
             nn.Conv2d(out_channels, out_channels, stride=stride, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(out_channels),
-            CBAM(out_channels),
+            # CBAM(out_channels),
             nn.ReLU(inplace=True),
             nn.Conv2d(out_channels, out_channels * BottleNeck.expansion, kernel_size=1, bias=False),
             nn.BatchNorm2d(out_channels * BottleNeck.expansion),
