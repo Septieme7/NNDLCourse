@@ -5,14 +5,14 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import os
 import models
-
+import tiny_imagenet_loader
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model_name = 'ResNet50_CBAM'
 save_file = 'results/' + model_name + '/checkpoint_' + model_name + '.pth.tar'
 save_dir = 'results/' + model_name + '/'
 epoch = 50
-
+run_type='imagenet'
 
 def train(model, data_loader, optimizer):
     model.train()
@@ -20,6 +20,7 @@ def train(model, data_loader, optimizer):
     total_loss = 0
     for _, (feature, label) in enumerate(tqdm(data_loader)):
         feature = feature.to(device)
+        # print(feature.shape)
         label = label.to(device)
         optimizer.zero_grad()
         output = model(feature)
@@ -78,7 +79,7 @@ def load_model(model_name):
     elif model_name == 'ResNet50_raw':
         model = models.resnet50()
     elif model_name == 'ResNet50_CBAM':
-        model = models.resnet50_CBAM()
+        model = models.resnet50_CBAM(num_classes=200)
     else:
         raise RuntimeError('Unknown model type!')
 
@@ -96,10 +97,13 @@ if __name__ == '__main__':
     else:
         optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
-    train_loader = torch.utils.data.DataLoader(
-        datasets.CIFAR10('../data', train=True, download=True, transform=transform), batch_size=128, shuffle=True)
-    test_loader = torch.utils.data.DataLoader(
-        datasets.CIFAR10('../data', train=False, transform=transform), batch_size=128, shuffle=True)
+
+    if run_type=='cifar':
+        train_loader = torch.utils.data.DataLoader(datasets.CIFAR10('../data', train=True, download=True, transform=transform), batch_size=128, shuffle=True)
+        test_loader = torch.utils.data.DataLoader(datasets.CIFAR10('../data', train=False, transform=transform), batch_size=128, shuffle=True)
+    elif run_type=='imagenet':
+        train_loader, test_loader = tiny_imagenet_loader.get_loader()
+
     train_acc_list = []
     test_acc_list = []
     train_loss_list = []
