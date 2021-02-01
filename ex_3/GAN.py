@@ -60,7 +60,7 @@ class Discriminator(nn.Module):
 
 
 def train_discriminator(model, image, criterion, batch_size):
-    model.zero_grad()
+    D_optimizer.zero_grad()
 
     x_real, y_real = image.view(-1, mnist_dim), torch.ones(batch_size, 1)
     x_real, y_real = Variable(x_real.to(device)), Variable(y_real.to(device))
@@ -82,7 +82,7 @@ def train_discriminator(model, image, criterion, batch_size):
 
 
 def train_generator(generator, discriminator, criterion, batch_size):
-    generator.zero_grad()
+    G_optimizer.zero_grad()
 
     z = Variable(torch.randn(batch_size, z_dim).to(device))
     y = Variable(torch.ones(batch_size, 1).to(device))

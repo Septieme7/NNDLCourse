@@ -78,7 +78,7 @@ def compute_gradient_penalty(model, real, fake):
 
 
 def train_discriminator(model, image, criterion, batch_size, factor):
-    model.zero_grad()
+    D_optimizer.zero_grad()
 
     # 真样本训练
     x_real, y_real = image.view(-1, mnist_dim), torch.ones(batch_size, 1)
@@ -101,7 +101,7 @@ def train_discriminator(model, image, criterion, batch_size, factor):
 
 
 def train_generator(generator, discriminator, criterion, batch_size):
-    generator.zero_grad()
+    G_optimizer.zero_grad()
 
     z = Variable(torch.randn(batch_size, z_dim).to(device))
     y = Variable(torch.ones(batch_size, 1).to(device))
